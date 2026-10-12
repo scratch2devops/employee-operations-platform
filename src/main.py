@@ -12,7 +12,7 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
+# logging added
 
 Base.metadata.create_all(bind=engine)
 
