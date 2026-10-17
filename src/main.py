@@ -5,6 +5,9 @@ from sqlalchemy.exc import IntegrityError
 from .database import Base, engine, SessionLocal
 from .models import Employee
 import logging
+import os
+import json
+import redis
 
 logging.basicConfig(
     level=logging.INFO,
@@ -13,6 +16,17 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 # logging added
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
+CACHE_TTL = 60
+
+redis_client = redis.Redis.from_url(
+    REDIS_URL,
+    decode_responses=True,
+    socket_connect_timeout=2,
+    socket_timeout=2
+)
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -66,6 +80,20 @@ def update_employee(
 
     db.commit()
     db.refresh(existing_employee)
+    try:
+        redis_client.delete(f"employee:{employee_id}")
+
+        logger.info(
+            "Redis cache invalidated: employee_id=%s",
+            employee_id
+        )
+
+    except redis.RedisError as exc:
+         logger.warning(
+            "Could not invalidate employee cache: %s",
+            exc
+        )
+
     logger.info("Employee updated: id=%s", employee_id)
     return existing_employee
 
@@ -119,12 +147,81 @@ def get_employees(db: Session = Depends(get_db)):
 
 @app.get("/employees/{employee_id}")
 def get_employee(employee_id: int, db: Session = Depends(get_db)):
-     employee = db.query(Employee).filter(Employee.id == employee_id).first()
-     if employee is None:
-        logger.warning("Employee rnot found: id=%s", employee_id)
-        raise HTTPException(status_code=404, detail="Employee not found")
-     logger.info("Employee retrieved: id=%s", employee_id)
-     return employee
+    cache_key = f"employee:{employee_id}"
+
+    # Step 1: Check Redis cache
+    try:
+        cached_employee = redis_client.get(cache_key)
+
+        if cached_employee:
+            try:
+                employee_data = json.loads(cached_employee)
+                logger.info(
+                    "Redis cache HIT: employee_id=%s",
+                    employee_id
+                )
+                return employee_data
+
+            except json.JSONDecodeError:
+                logger.warning(
+                    "Invalid cached data: employee_id=%s",
+                    employee_id
+                )
+                redis_client.delete(cache_key)
+
+    except redis.RedisError as exc:
+        logger.warning(
+            "Redis unavailable; falling back to PostgreSQL: %s",
+            exc
+        )
+
+    # Step 2: Cache miss or Redis unavailable
+    employee = (
+        db.query(Employee)
+        .filter(Employee.id == employee_id)
+        .first()
+    )
+
+    if employee is None:
+        logger.warning(
+            "Employee not found: id=%s",
+            employee_id
+        )
+        raise HTTPException(
+            status_code=404,
+            detail="Employee not found"
+        )
+
+    # Step 3: Prepare employee data
+    employee_data = {
+        "id": employee.id,
+        "name": employee.name,
+        "email": employee.email,
+        "department": employee.department,
+        "designation": employee.designation,
+        "salary": employee.salary
+    }
+
+    # Step 4: Store the result in Redis
+    try:
+        redis_client.setex(
+            cache_key,
+            CACHE_TTL,
+            json.dumps(employee_data)
+        )
+
+        logger.info(
+            "Redis cache SET: employee_id=%s",
+            employee_id
+        )
+
+    except (redis.RedisError, TypeError, ValueError) as exc:
+        logger.warning(
+            "Could not cache employee: %s",
+            exc
+        )
+
+    return employee_data
     
 @app.delete("/employees/{employee_id}")
 def delete_employee(
@@ -145,6 +242,19 @@ def delete_employee(
 
     db.delete(employee)
     db.commit()
+    try:
+        redis_client.delete(f"employee:{employee_id}")
+
+        logger.info(
+            "Redis cache invalidated: employee_id=%s",
+            employee_id
+        )
+
+    except redis.RedisError as exc:
+        logger.warning(
+            "Could not invalidate employee cache: %s",
+            exc
+        )
     logger.info("Employee deleted: id=%s", employee_id)
     return {
         "message": "Employee deleted successfully"

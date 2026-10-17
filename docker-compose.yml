@@ -1,19 +1,36 @@
 services:
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: scratch2devops/employee-operations-platform:v1.0
     container_name: employee_api
     ports:
       - "8001:8000"
+
     environment:
       DATABASE_URL: postgresql+psycopg://employee_user:${DB_PASSWORD:?Set DB_PASSWORD in .env}@db:5432/employee_db
       APP_NAME: Employee Operations Platform
       LOG_LEVEL: INFO
+      REDIS_URL: redis://redis:6379/0
+    mem_limit: 512m
+    cpus: 1.0
+
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
     restart: unless-stopped
+
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   db:
     image: postgres:17
@@ -31,6 +48,15 @@ services:
       retries: 10
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: employee_redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   db_data:
-
