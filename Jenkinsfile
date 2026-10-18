@@ -23,8 +23,7 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh '.venv/bin/python -m pip install --upgrade pip'
-                sh '.venv/bin/python -m pip install -r requirements.txt pytest'
+                sh '.venv/bin/python -m pip install -r requirements-dev.txt'
             }
         }
 
