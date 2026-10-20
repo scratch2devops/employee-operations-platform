@@ -1,6 +1,6 @@
 services:
   api:
-    image: scratch2devops/employee-operations-platform:v1.0
+    image: scratch2devops/employee-operations-platform:${IMAGE_TAG:-v1.0}
     container_name: employee_api
     ports:
       - "8001:8000"
