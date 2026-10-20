@@ -32,6 +32,11 @@ pipeline {
                 sh '.venv/bin/python -m pytest -v tests/'
             }
         }
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t employee-operations-platform:${BUILD_NUMBER} .'
+            }
+        }
     }
 
     post {

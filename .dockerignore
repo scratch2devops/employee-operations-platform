@@ -16,3 +16,5 @@ tests
 *.db
 **/venv/
 **/.venv/
+backups/
+jenkins-home-backup.tar.gz
