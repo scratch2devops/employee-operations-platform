@@ -37,6 +37,32 @@ pipeline {
                 sh 'docker build -t employee-operations-platform:${BUILD_NUMBER} .'
             }
         }
+       
+        
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([usernamePassword(
+                credentialsId: 'dockerhub-creds',
+                usernameVariable: 'DOCKERHUB_USERNAME',
+                passwordVariable: 'DOCKERHUB_TOKEN'
+              )]) {
+                  sh '''
+                      echo "$DOCKERHUB_TOKEN" | docker login \
+                         --username "$DOCKERHUB_USERNAME" \
+                         --password-stdin
+
+                      docker tag employee-operations-platform:${BUILD_NUMBER} \
+                          "$DOCKERHUB_USERNAME/employee-operations-platform:${BUILD_NUMBER}"
+
+                      docker push \
+                          "$DOCKERHUB_USERNAME/employee-operations-platform:${BUILD_NUMBER}"
+
+                      docker logout
+                   '''
+              }
+          } 
+       }
+ 
     }
 
     post {
