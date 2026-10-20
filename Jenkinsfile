@@ -62,7 +62,26 @@ pipeline {
               }
           } 
        }
- 
+
+      stage('Deploy') {
+            steps {
+                withCredentials([string(
+                    credentialsId: 'employee-db-password',
+                    variable: 'DB_PASSWORD'
+                )]) {
+                    sh '''
+                        export IMAGE_TAG="$BUILD_NUMBER"
+
+                        docker compose -p employee-operations-platform pull api
+
+                        docker compose -p employee-operations-platform up -d --no-deps api
+
+                        docker inspect employee_api --format '{{.Config.Image}}'
+                        docker inspect employee_api --format '{{.State.Health.Status}}'
+                    '''
+                }
+            }
+        } 
     }
 
     post {
