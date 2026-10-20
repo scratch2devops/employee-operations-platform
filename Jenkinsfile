@@ -42,7 +42,7 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 withCredentials([usernamePassword(
-                credentialsId: 'dockerhub-creds',
+                credentialsId: 'scratch2devops',
                 usernameVariable: 'DOCKERHUB_USERNAME',
                 passwordVariable: 'DOCKERHUB_TOKEN'
               )]) {
