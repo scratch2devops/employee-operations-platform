@@ -93,6 +93,8 @@ pipeline {
                     docker compose -p employee-operations-platform up -d --no-deps api
                   
                     echo "Waiting for employee_api to become healthy..."
+                    
+                    healthy=false
 
                     for attempt in $(seq 1 12); do
                         health=$(docker inspect employee_api \
@@ -102,6 +104,7 @@ pipeline {
 
                         if [ "$health" = "healthy" ]; then
                             echo "Deployment health check passed!"
+                            healthy=true
                             break
                         fi
 
@@ -112,9 +115,12 @@ pipeline {
 
                         sleep 5
                    done
-
+                   
+                   if [ "$healthy" != "true" ]; then
+                        
                    echo "ERROR: Application did not become healthy within 60 seconds."
                    exit 1
+                   fi
 
                    echo "Testing deployed API..."
 
