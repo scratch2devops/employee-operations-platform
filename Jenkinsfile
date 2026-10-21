@@ -102,7 +102,7 @@ pipeline {
 
                         if [ "$health" = "healthy" ]; then
                             echo "Deployment health check passed!"
-                            exit 0
+                            break
                         fi
 
                         if [ "$health" = "unhealthy" ] || [ "$health" = "no-healthcheck" ]; then
