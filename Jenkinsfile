@@ -91,9 +91,30 @@ pipeline {
                     docker compose -p employee-operations-platform pull api
 
                     docker compose -p employee-operations-platform up -d --no-deps api
+                  
+                    echo "Waiting for employee_api to become healthy..."
 
-                   docker inspect employee_api --format 'Image: {{.Config.Image}}'
-                   docker inspect employee_api --format 'Status: {{.State.Status}} | Health: {{.State.Health.Status}}'
+                    for attempt in $(seq 1 12); do
+                        health=$(docker inspect employee_api \
+                           --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}')
+
+                        echo "Health check attempt $attempt/12: $health"
+
+                        if [ "$health" = "healthy" ]; then
+                            echo "Deployment health check passed!"
+                            exit 0
+                        fi
+
+                        if [ "$health" = "unhealthy" ] || [ "$health" = "no-healthcheck" ]; then
+                              echo "ERROR: Container is $health"
+                              exit 1
+                        fi
+
+                        sleep 5
+                   done
+
+                   echo "ERROR: Application did not become healthy within 60 seconds."
+                   exit 1
                 '''
             }
        }
