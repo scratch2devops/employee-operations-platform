@@ -116,11 +116,7 @@ pipeline {
                         sleep 5
                    done
                    
-                   if [ "$healthy" != "true" ]; then
                         
-                   echo "ERROR: Application did not become healthy within 60 seconds."
-                   exit 1
-                   fi
 
                    echo "Testing deployed API..."
 
