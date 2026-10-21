@@ -115,7 +115,19 @@ pipeline {
 
                    echo "ERROR: Application did not become healthy within 60 seconds."
                    exit 1
-                '''
+
+                   echo "Testing deployed API..."
+
+                   response=$(curl --fail --silent --show-error \
+                       --max-time 10 \
+                      http://localhost:8001/health)
+
+                   echo "API response: $response"
+
+                   echo "$response" | grep -q '"status":"healthy"'
+
+                  echo "Post-deployment API test passed!"
+               '''
             }
        }
     }
