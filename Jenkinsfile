@@ -163,7 +163,6 @@ pipeline {
        }
     }
 
-  }
   
    post {
         success {
