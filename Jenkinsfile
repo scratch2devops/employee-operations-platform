@@ -82,6 +82,11 @@ pipeline {
                       set -e
                       trap 'docker logout >/dev/null 2>&1 || true' EXIT
 
+                     PREVIOUS_IMAGE=$(docker inspect employee_api \
+                         --format '{{.Config.Image}}')
+
+                     echo "Currently deployed image: $PREVIOUS_IMAGE"
+                     echo "New image to deploy: $DOCKERHUB_USERNAME/employee-operations-platform:$BUILD_NUMBER"
                      export IMAGE_TAG="$BUILD_NUMBER"
 
                      echo "$DOCKERHUB_TOKEN" | docker login \
