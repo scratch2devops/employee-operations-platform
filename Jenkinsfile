@@ -1,12 +1,5 @@
 pipeline {
     agent any
-    parameters {
-    booleanParam(
-        name: 'SIMULATE_DEPLOYMENT_FAILURE',
-        defaultValue: false,
-        description: 'Test rollback by failing deployment verification once'
-    )
-}
     stages {
         stage('Checkout') {
             steps {
@@ -146,13 +139,7 @@ pipeline {
                    echo "API response: $response"
 
                    echo "$response" | grep -q '"status":"healthy"' || return 1
-                   if [ "${SIMULATE_DEPLOYMENT_FAILURE:-false}" = "true" ] \
-                      && [ "${ROLLBACK_TEST_TRIGGERED:-false}" != "true" ]; then
-                      echo "TEST MODE: Simulating one deployment verification failure."
-                      ROLLBACK_TEST_TRIGGERED=true
-                      return 1
-                   fi
-                  echo "Post-deployment API test passed!"
+                   echo "Post-deployment API test passed!"
                 }
                 if deploy_and_verify; then
                     echo "Deployment successful!"
