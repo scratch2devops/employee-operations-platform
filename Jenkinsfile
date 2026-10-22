@@ -146,14 +146,16 @@ pipeline {
                    echo "API response: $response"
 
                    echo "$response" | grep -q '"status":"healthy"' || return 1
-
+                   if [ "${SIMULATE_DEPLOYMENT_FAILURE:-false}" = "true" ] \
+                      && [ "${ROLLBACK_TEST_TRIGGERED:-false}" != "true" ]; then
+                      echo "TEST MODE: Simulating one deployment verification failure."
+                      ROLLBACK_TEST_TRIGGERED=true
+                      return 1
+                   fi
                   echo "Post-deployment API test passed!"
                 }
-                  if [ "${SIMULATE_DEPLOYMENT_FAILURE:-false}" = "true" ]; then
-                     echo "TEST MODE: Simulating deployment verification failure."
-                     false
-                  elif deploy_and_verify; then
-                      echo "Deployment successful!"
+                if deploy_and_verify; then
+                    echo "Deployment successful!"
                 else 
                    echo "ERROR: New deployment failed. Rolling back to $PREVIOUS_IMAGE"
 
