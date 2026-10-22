@@ -78,8 +78,8 @@ pipeline {
                    )
                 ]) {
                    sh '''
-                      set -e
                       trap 'docker logout >/dev/null 2>&1 || true' EXIT
+                      set -e
 
                      PREVIOUS_IMAGE=$(docker inspect employee_api \
                          --format '{{.Config.Image}}')
