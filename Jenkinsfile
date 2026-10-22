@@ -143,8 +143,11 @@ pipeline {
 
                   echo "Post-deployment API test passed!"
                 }
-                if deploy_and_verify; then
-                    echo "Deployment successful!"
+                  if [ "${SIMULATE_DEPLOYMENT_FAILURE:-false}" = "true" ]; then
+                     echo "TEST MODE: Simulating deployment verification failure."
+                     false
+                  elif deploy_and_verify; then
+                      echo "Deployment successful!"
                 else 
                    echo "ERROR: New deployment failed. Rolling back to $PREVIOUS_IMAGE"
 
