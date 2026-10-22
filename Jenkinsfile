@@ -145,12 +145,13 @@ pipeline {
                 }
                 if deploy_and_verify; then
                     echo "Deployment successful!"
-                else
+                else 
                    echo "ERROR: New deployment failed. Rolling back to $PREVIOUS_IMAGE"
 
                    export IMAGE_TAG="${PREVIOUS_IMAGE##*:}"
 
-                   if docker compose -p employee-operations-platform up -d --no-deps api \
+                   if docker compose -p employee-operations-platform pull api \
+                       && docker compose -p employee-operations-platform up -d --no-deps api \
                        && deploy_and_verify; then
                        echo "Rollback successful. Previous application is healthy."
                     else
@@ -162,6 +163,7 @@ pipeline {
 
               '''
            }
+         }
        }
     }
 
@@ -178,4 +180,4 @@ pipeline {
         }
     }
 }
-}
+
