@@ -86,7 +86,9 @@ pipeline {
                          --format '{{.Config.Image}}')
 
                      echo "Currently deployed image: $PREVIOUS_IMAGE"
-                     echo "New image to deploy: $DOCKERHUB_USERNAME/employee-operations-platform:$BUILD_NUMBER"
+                     NEW_IMAGE="$DOCKERHUB_USERNAME/employee-operations-platform:$BUILD_NUMBER"
+                     echo "New image to deploy: $NEW_IMAGE"
+                     
                      export IMAGE_TAG="$BUILD_NUMBER"
 
                      echo "$DOCKERHUB_TOKEN" | docker login \
@@ -95,47 +97,68 @@ pipeline {
 
                     docker compose -p employee-operations-platform pull api
 
-                    docker compose -p employee-operations-platform up -d --no-deps api
+                    deploy_and_verify(){
+
+                         docker compose -p employee-operations-platform up -d --no-deps api
                   
-                    echo "Waiting for employee_api to become healthy..."
+                         echo "Waiting for employee_api to become healthy..."
                     
-                    healthy=false
+                         healthy=false
 
-                    for attempt in $(seq 1 12); do
-                        health=$(docker inspect employee_api \
-                           --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}')
+                         for attempt in $(seq 1 12); do
+                             health=$(docker inspect employee_api \
+                                 --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}')
 
-                        echo "Health check attempt $attempt/12: $health"
+                             echo "Health check attempt $attempt/12: $health"
 
-                        if [ "$health" = "healthy" ]; then
-                            echo "Deployment health check passed!"
-                            healthy=true
-                            break
-                        fi
+                             if [ "$health" = "healthy" ]; then
+                                  echo "Deployment health check passed!"
+                                  healthy=true
+                                  break
+                             fi
 
-                        if [ "$health" = "unhealthy" ] || [ "$health" = "no-healthcheck" ]; then
-                              echo "ERROR: Container is $health"
-                              exit 1
+                             if [ "$health" = "unhealthy" ] || [ "$health" = "no-healthcheck" ]; then
+                                  echo "ERROR: Container is $health"
+                                  return 1
                         fi
 
                         sleep 5
                    done
                    
-                        
+                   if [ "$healthy" != "true" ]; then
+                         echo "ERROR: Application did not become healthy within the retry window."
+                         return 1
+                   fi
 
+                        
                    echo "Testing deployed API..."
 
                    response=$(curl --fail --silent --show-error \
                        --max-time 10 \
-                      http://api:8000/health)
+                      http://api:8000/health) || return 1
 
                    echo "API response: $response"
 
-                   echo "$response" | grep -q '"status":"healthy"'
+                   echo "$response" | grep -q '"status":"healthy"' || return 1
 
                   echo "Post-deployment API test passed!"
-               '''
-            }
+                }
+                if deploy_and_verify; then
+                    echo "Deployment successful!"
+                else
+                   echo "ERROR: New deployment failed. Rolling back to $PREVIOUS_IMAGE"
+
+                   export IMAGE_TAG="${PREVIOUS_IMAGE##*:}"
+
+                   if docker compose -p employee-operations-platform up -d --no-deps api \
+                       && deploy_and_verify; then
+                       echo "Rollback successful. Previous application is healthy."
+                    else
+                       echo "CRITICAL: Rollback did not restore a healthy application."
+                    fi
+
+                    exit 1
+                 fi
        }
     }
 
