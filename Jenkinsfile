@@ -1,6 +1,12 @@
 pipeline {
     agent any
-
+    parameters {
+    booleanParam(
+        name: 'SIMULATE_DEPLOYMENT_FAILURE',
+        defaultValue: false,
+        description: 'Test rollback by failing deployment verification once'
+    )
+}
     stages {
         stage('Checkout') {
             steps {
