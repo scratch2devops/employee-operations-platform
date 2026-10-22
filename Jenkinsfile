@@ -122,7 +122,7 @@ pipeline {
 
                    response=$(curl --fail --silent --show-error \
                        --max-time 10 \
-                      http://localhost:8001/health)
+                      http://api:8000/health)
 
                    echo "API response: $response"
 
